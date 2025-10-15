@@ -16,6 +16,17 @@ type PriceRange = "< ₹50L" | "₹50L–₹1Cr" | "₹1Cr–₹3Cr" | "₹3Cr+"
 
 type Tone = "Professional" | "Luxury" | "Casual" | "Investor-focused"
 
+// NEW: Helper function to download text
+function downloadText(content: string, filename: string) {
+  const element = document.createElement("a")
+  const file = new Blob([content], { type: "text/plain" })
+  element.href = URL.createObjectURL(file)
+  element.download = filename
+  document.body.appendChild(element)
+  element.click()
+  document.body.removeChild(element)
+}
+
 export default function PropWriteApp() {
   // Form state
   const [propertyType, setPropertyType] = useState("Apartment")
@@ -23,6 +34,11 @@ export default function PropWriteApp() {
   const [priceRange, setPriceRange] = useState<PriceRange | "">("")
   const [features, setFeatures] = useState("")
   const [tone, setTone] = useState<Tone>("Professional")
+
+  // NEW STATES for MVP details (Bedrooms, Bathrooms, Area)
+  const [bedrooms, setBedrooms] = useState("")
+  const [bathrooms, setBathrooms] = useState("")
+  const [area, setArea] = useState("") 
 
   // Result/UX state
   const [loading, setLoading] = useState(false)
@@ -52,6 +68,10 @@ export default function PropWriteApp() {
           priceRange,
           features,
           tone,
+          // PASS NEW FIELDS
+          bedrooms,
+          bathrooms,
+          area,
         }),
       })
 
@@ -129,6 +149,43 @@ export default function PropWriteApp() {
                     </SelectGroup>
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* NEW: Bedrooms & Bathrooms */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="bedrooms">Bedrooms</Label>
+                  <Input
+                    id="bedrooms"
+                    type="number"
+                    placeholder="e.g., 3"
+                    min="1"
+                    value={bedrooms}
+                    onChange={(e) => setBedrooms(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="bathrooms">Bathrooms</Label>
+                  <Input
+                    id="bathrooms"
+                    type="number"
+                    placeholder="e.g., 2"
+                    min="1"
+                    value={bathrooms}
+                    onChange={(e) => setBathrooms(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* NEW: Area */}
+              <div className="grid gap-2">
+                <Label htmlFor="area">Area (sq.ft / sq.m)</Label>
+                <Input
+                  id="area"
+                  placeholder="e.g., 1500 sq.ft or 140 sq.m"
+                  value={area}
+                  onChange={(e) => setArea(e.target.value)}
+                />
               </div>
 
               {/* Location */}
@@ -221,16 +278,28 @@ export default function PropWriteApp() {
                 <CardTitle>Listing Description</CardTitle>
                 <CardDescription>Polished, ready-to-use description.</CardDescription>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => copyToClipboard(description)}
-                disabled={!description || loading}
-                aria-disabled={!description || loading}
-              >
-                <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
-                Copy Text
-              </Button>
+              {/* NEW: Button Group for Copy and Download */}
+              <div className="flex items-center gap-2">
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => downloadText(description, "propwrite_listing.txt")}
+                    disabled={!description || loading}
+                    aria-disabled={!description || loading}
+                >
+                    Download (.txt)
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => copyToClipboard(description)}
+                  disabled={!description || loading}
+                  aria-disabled={!description || loading}
+                >
+                  <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Copy Text
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
@@ -311,8 +380,11 @@ export default function PropWriteApp() {
               <Separator className="my-6" />
 
               <div className="flex items-center justify-between gap-4">
-                <p className="text-sm text-muted-foreground">Want multiple variations and styles?</p>
-                <Button variant="secondary">Regenerate (Upgrade to Pro)</Button>
+                {/* MODIFIED: This is now a simple Regenerate button for free users */}
+                <p className="text-sm text-muted-foreground">Get a new variant?</p>
+                <Button variant="secondary" onClick={handleGenerate} disabled={loading}>
+                    Regenerate
+                </Button>
               </div>
             </CardContent>
           </Card>

@@ -9,7 +9,10 @@ create table if not exists public.generations (
   tone text,
   description text,
   social_post text,
-  hashtags text[]
+  hashtags text[],
+  bedrooms integer,
+  bathrooms integer,
+  area_sqft_sqm text
 );
 
 -- Helpful index for search

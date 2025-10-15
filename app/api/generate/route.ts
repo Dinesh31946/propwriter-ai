@@ -1,7 +1,12 @@
+// dinesh31946/propwriter-ai/propwriter-ai-8fb7fd9ed2170095b9e5ea20cd26a171323e1ab5/app/api/generate/route.ts
+
 import { NextResponse } from "next/server"
 import { generateText } from "ai"
-import { createServerClient } from "@supabase/ssr"
-import { cookies, headers } from "next/headers"
+// --- NEW IMPORT ---
+import { openai } from "@ai-sdk/openai" 
+// ------------------
+import { createServerClient, type CookieOptions } from "@supabase/ssr" 
+import { cookies } from "next/headers"
 
 // Simple schema/type for request payload
 type GenerateBody = {
@@ -10,19 +15,31 @@ type GenerateBody = {
   priceRange?: string
   features?: string
   tone?: string
+  bedrooms?: string
+  bathrooms?: string
+  area?: string
 }
 
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as GenerateBody
 
-    const { propertyType = "Apartment", location = "", priceRange = "", features = "", tone = "Professional" } = body
+    const {
+      propertyType = "Apartment",
+      location = "",
+      priceRange = "",
+      features = "",
+      tone = "Professional",
+      // Destructure new fields
+      bedrooms = "",
+      bathrooms = "",
+      area = "",
+    } = body
 
-    // Ask the model to return JSON so we can parse deterministically.
     const prompt = [
       "You are PropWrite, an assistant that crafts real estate listing content.",
       "Return strictly valid JSON with keys: description (string), socialPost (string), hashtags (array of 8-12 short strings).",
-      "The description should be 100-160 words, polished and professional.",
+      "The description should be **300-450 words**, polished and professional.",
       "The socialPost should be concise and engaging (max ~40 words).",
       "Hashtags must be single words prefixed with '#'.",
       "",
@@ -30,18 +47,24 @@ export async function POST(req: Request) {
       `- Property type: ${propertyType}`,
       `- Location: ${location || "N/A"}`,
       `- Price range: ${priceRange || "N/A"}`,
-      `- Features: ${features || "N/A"}`,
+      `- Key Features/Amenities: ${features || "N/A"}`,
       `- Tone: ${tone}`,
+      `${bedrooms ? `- Bedrooms: ${bedrooms}` : ""}`,
+      `${bathrooms ? `- Bathrooms: ${bathrooms}` : ""}`,
+      `${area ? `- Area: ${area}` : ""}`,
       "",
       "Output only JSON. No markdown, no fences.",
-    ].join("\n")
+    ].filter(Boolean).join("\n")
 
+    // AI GENERATION AND PARSING LOGIC
     const { text } = await generateText({
-      model: "openai/gpt-5-mini",
+      // --- FIX: PASS THE OPENAI PROVIDER AND MODEL ---
+      model: openai("gpt-4o-mini"), // Using gpt-4o-mini for cost efficiency
+      // model: openai("gpt-5-mini"), // Use this line if you specifically require gpt-5-mini
+      // ------------------------------------------------
       prompt,
     })
 
-    // Try to parse the model output as JSON
     let parsed: { description: string; socialPost: string; hashtags: string[] }
     try {
       parsed = JSON.parse(text)
@@ -66,13 +89,26 @@ export async function POST(req: Request) {
         ],
       }
     }
-
-    // Persist generation in Supabase (optional if integration is not yet connected)
+    
+    // Persist generation in Supabase
     try {
-      const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
-        cookies,
-        headers,
-      })
+      const cookieStore = await cookies();
+
+      const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_ANON_KEY!,
+        {
+          cookies: {
+            get: (name: string) => cookieStore.get(name)?.value,
+            set: (name: string, value: string, options: CookieOptions) => {
+              cookieStore.set({ name, value, ...options })
+            },
+            remove: (name: string, options: CookieOptions) => {
+              cookieStore.set({ name, value: '', ...options })
+            },
+          },
+        }
+      );
 
       const { error } = await supabase.from("generations").insert({
         property_type: propertyType,
@@ -83,15 +119,16 @@ export async function POST(req: Request) {
         description: parsed.description,
         social_post: parsed.socialPost,
         hashtags: parsed.hashtags,
-      })
+        bedrooms: bedrooms ? parseInt(bedrooms) : null,
+        bathrooms: bathrooms ? parseInt(bathrooms) : null,
+        area_sqft_sqm: area,
+      });
 
       if (error) {
-        // Non-fatal for API response; log for debugging
-        // console.log("[v0] supabase insert error:", error.message)
+        console.error("[v0] Supabase insert error:", error.message);
       }
-    } catch {
-      // Supabase not connected or envs missing; continue without failing the API
-      // console.log("[v0] supabase not configured; skipping insert")
+    } catch (err) {
+      console.error("[v0] Supabase not configured; skipping insert", err);
     }
 
     return NextResponse.json(parsed)
