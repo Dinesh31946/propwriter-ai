@@ -16,7 +16,9 @@ type PriceRange = "< ₹50L" | "₹50L–₹1Cr" | "₹1Cr–₹3Cr" | "₹3Cr+"
 
 type Tone = "Professional" | "Luxury" | "Casual" | "Investor-focused"
 
-// NEW: Helper function to download text
+type ListingType = "Sale" | "Rent" | "Lease"
+
+// Helper function to download text
 function downloadText(content: string, filename: string) {
   const element = document.createElement("a")
   const file = new Blob([content], { type: "text/plain" })
@@ -30,22 +32,34 @@ function downloadText(content: string, filename: string) {
 export default function PropWriteApp() {
   // Form state
   const [propertyType, setPropertyType] = useState("Apartment")
-  const [location, setLocation] = useState("")
-  const [priceRange, setPriceRange] = useState<PriceRange | "">("")
+  // EXPLICIT LISTING TYPE
+  const [listingType, setListingType] = useState<ListingType>("Sale") 
+  
+  // Structured Location States
+  const [locality, setLocality] = useState("") 
+  const [cityState, setCityState] = useState("")
+  
+  // CONDITIONAL PRICE STATES
+  const [salePriceRange, setSalePriceRange] = useState<PriceRange | "">("")
+  const [rentMonthly, setRentMonthly] = useState("")
+  const [rentDeposit, setRentDeposit] = useState("")
+  
   const [features, setFeatures] = useState("")
   const [tone, setTone] = useState<Tone>("Professional")
 
-  // NEW STATES for MVP details (Bedrooms, Bathrooms, Area)
+  // States for Specs & New Landmarks/Project
   const [bedrooms, setBedrooms] = useState("")
   const [bathrooms, setBathrooms] = useState("")
   const [area, setArea] = useState("") 
+  const [projectName, setProjectName] = useState("")
+  const [keyLandmarks, setKeyLandmarks] = useState("")
 
   // Result/UX state
   const [loading, setLoading] = useState(false)
   const [description, setDescription] = useState("")
   const [socialPost, setSocialPost] = useState("")
   const [hashtags, setHashtags] = useState<string[]>([])
-
+  
   const wordsCount = useMemo(() => {
     const trimmed = features.trim()
     if (!trimmed) return 0
@@ -64,14 +78,20 @@ export default function PropWriteApp() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           propertyType,
-          location,
-          priceRange,
+          listingType, // Pass EXPLICIT type
+          locality,
+          cityState,
           features,
           tone,
-          // PASS NEW FIELDS
           bedrooms,
           bathrooms,
           area,
+          projectName,
+          keyLandmarks,
+          // Pass ONLY the relevant price field
+          salePriceRange: listingType === 'Sale' ? salePriceRange : undefined,
+          rentMonthly: listingType !== 'Sale' ? rentMonthly : undefined,
+          rentDeposit: listingType !== 'Sale' ? rentDeposit : undefined,
         }),
       })
 
@@ -106,7 +126,7 @@ export default function PropWriteApp() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header */}
+      {/* Header (no change) */}
       <header className="mb-8">
         <div className="flex items-center gap-3">
           <div className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
@@ -132,7 +152,25 @@ export default function PropWriteApp() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4">
-              {/* Property Type */}
+              
+              {/* NEW: LISTING TYPE (Explicitly Selected) */}
+              <div className="grid gap-2">
+                <Label htmlFor="listing-type">Listing Type</Label>
+                <Select value={listingType} onValueChange={(v: ListingType) => setListingType(v)}>
+                  <SelectTrigger id="listing-type" aria-label="Listing Type">
+                    <SelectValue placeholder="Select Sale or Rent" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      <SelectItem value="Sale">For Sale</SelectItem>
+                      <SelectItem value="Rent">For Rent</SelectItem>
+                      <SelectItem value="Lease">For Lease</SelectItem>
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Property Type (Remains) */}
               <div className="grid gap-2">
                 <Label htmlFor="property-type">Property Type</Label>
                 <Select value={propertyType} onValueChange={setPropertyType}>
@@ -151,7 +189,7 @@ export default function PropWriteApp() {
                 </Select>
               </div>
 
-              {/* NEW: Bedrooms & Bathrooms */}
+              {/* Bedrooms & Bathrooms (Remains) */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="bedrooms">Bedrooms</Label>
@@ -177,7 +215,7 @@ export default function PropWriteApp() {
                 </div>
               </div>
 
-              {/* NEW: Area */}
+              {/* Area (Remains) */}
               <div className="grid gap-2">
                 <Label htmlFor="area">Area (sq.ft / sq.m)</Label>
                 <Input
@@ -188,41 +226,87 @@ export default function PropWriteApp() {
                 />
               </div>
 
-              {/* Location */}
+              {/* Locality/Area (Remains) */}
               <div className="grid gap-2">
-                <Label htmlFor="location">Location</Label>
+                <Label htmlFor="locality">Locality / Area</Label>
                 <Input
-                  id="location"
-                  placeholder="Neighborhood, City, State"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  id="locality"
+                  placeholder="e.g., Ulwe, Bandra, or Sector 10"
+                  value={locality}
+                  onChange={(e) => setLocality(e.target.value)}
                 />
               </div>
 
-              {/* Price Range */}
+              {/* City/State (Remains) */}
               <div className="grid gap-2">
-                <Label htmlFor="price-range">Price Range</Label>
-                <Select value={priceRange} onValueChange={(v: PriceRange) => setPriceRange(v)}>
-                  <SelectTrigger id="price-range" aria-label="Price Range">
-                    <SelectValue placeholder="Select a price range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="< ₹50L">{"< ₹50L"}</SelectItem>
-                      <SelectItem value="₹50L–₹1Cr">₹50L–₹1Cr</SelectItem>
-                      <SelectItem value="₹1Cr–₹3Cr">₹1Cr–₹3Cr</SelectItem>
-                      <SelectItem value="₹3Cr+">₹3Cr+</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="cityState">City, State</Label>
+                <Input
+                  id="cityState"
+                  placeholder="e.g., Navi Mumbai, Maharashtra"
+                  value={cityState}
+                  onChange={(e) => setCityState(e.target.value)}
+                />
               </div>
 
-              {/* Features & Amenities */}
+              {/* Project / Building Name (Remains) */}
+              <div className="grid gap-2">
+                <Label htmlFor="projectName">Project / Building Name (Optional)</Label>
+                <Input
+                  id="projectName"
+                  placeholder="e.g., Lodha Pallazio or Royal Towers"
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                />
+              </div>
+              
+              {/* --- CONDITIONAL PRICE INPUT --- */}
+              {listingType === 'Sale' ? (
+                <div className="grid gap-2">
+                  <Label htmlFor="price-range">Sale Price Range</Label>
+                  <Select value={salePriceRange} onValueChange={(v: PriceRange) => setSalePriceRange(v)}>
+                    <SelectTrigger id="price-range" aria-label="Sale Price Range">
+                      <SelectValue placeholder="Select a price range" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="< ₹50L">{"< ₹50L"}</SelectItem>
+                        <SelectItem value="₹50L–₹1Cr">₹50L–₹1Cr</SelectItem>
+                        <SelectItem value="₹1Cr–₹3Cr">₹1Cr–₹3Cr</SelectItem>
+                        <SelectItem value="₹3Cr+">₹3Cr+</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="grid gap-2">
+                  <Label htmlFor="rentMonthly">Rent / Lease Terms</Label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input
+                      id="rentMonthly"
+                      type="number"
+                      placeholder="Monthly Rent (₹)"
+                      value={rentMonthly}
+                      onChange={(e) => setRentMonthly(e.target.value)}
+                    />
+                    <Input
+                      id="rentDeposit"
+                      type="text"
+                      placeholder="Deposit / Lease Term"
+                      value={rentDeposit}
+                      onChange={(e) => setRentDeposit(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+              {/* --- END CONDITIONAL PRICE INPUT --- */}
+
+
+              {/* Features & Amenities (Remains) */}
               <div className="grid gap-2">
                 <Label htmlFor="features">Key Features & Amenities</Label>
                 <Textarea
                   id="features"
-                  placeholder="E.g., 3 BHK, spacious living, modular kitchen, balcony, covered parking, near metro, clubhouse, pool..."
+                  placeholder="E.g., modular kitchen, balcony, covered parking, clubhouse, pool, power backup..."
                   value={features}
                   onChange={(e) => setFeatures(e.target.value)}
                   rows={6}
@@ -234,7 +318,20 @@ export default function PropWriteApp() {
                 </div>
               </div>
 
-              {/* Tone */}
+              {/* Proximity / Landmarks (Remains) */}
+              <div className="grid gap-2">
+                <Label htmlFor="keyLandmarks">Proximity / Key Landmarks</Label>
+                <Textarea
+                  id="keyLandmarks"
+                  placeholder="E.g., 5 mins walk to Metro Station, Near Reliance Mall, Next to D-Mart"
+                  value={keyLandmarks}
+                  onChange={(e) => setKeyLandmarks(e.target.value)}
+                  rows={3}
+                />
+                <span className="text-xs text-muted-foreground">The AI will use these details to enhance the location narrative.</span>
+              </div>
+
+              {/* Tone (Remains) */}
               <div className="grid gap-2">
                 <Label htmlFor="tone">Tone</Label>
                 <Select value={tone} onValueChange={(v: Tone) => setTone(v)}>
@@ -252,7 +349,7 @@ export default function PropWriteApp() {
                 </Select>
               </div>
 
-              {/* Action */}
+              {/* Action (Remains) */}
               <div className="pt-2">
                 <Button
                   size="lg"
@@ -271,19 +368,19 @@ export default function PropWriteApp() {
 
         {/* Right: Output Panel */}
         <div className="flex flex-col gap-6">
-          {/* Listing Description */}
+          
+          {/* Listing Description (Download button remains) */}
           <Card className="border shadow-sm">
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <div>
                 <CardTitle>Listing Description</CardTitle>
                 <CardDescription>Polished, ready-to-use description.</CardDescription>
               </div>
-              {/* NEW: Button Group for Copy and Download */}
               <div className="flex items-center gap-2">
                 <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => downloadText(description, "propwrite_listing.txt")}
+                    onClick={() => downloadText(description, `propwrite_${listingType.toLowerCase()}_listing.txt`)}
                     disabled={!description || loading}
                     aria-disabled={!description || loading}
                 >
@@ -318,7 +415,7 @@ export default function PropWriteApp() {
             </CardContent>
           </Card>
 
-          {/* Social Post */}
+          {/* Social Post (Remains) */}
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <div>
@@ -351,7 +448,7 @@ export default function PropWriteApp() {
             </CardContent>
           </Card>
 
-          {/* Hashtags + Upsell */}
+          {/* Hashtags + Upsell (Regenerate button remains) */}
           <Card>
             <CardHeader>
               <CardTitle>Hashtags</CardTitle>
@@ -380,7 +477,6 @@ export default function PropWriteApp() {
               <Separator className="my-6" />
 
               <div className="flex items-center justify-between gap-4">
-                {/* MODIFIED: This is now a simple Regenerate button for free users */}
                 <p className="text-sm text-muted-foreground">Get a new variant?</p>
                 <Button variant="secondary" onClick={handleGenerate} disabled={loading}>
                     Regenerate

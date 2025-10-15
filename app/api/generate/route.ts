@@ -2,22 +2,33 @@
 
 import { NextResponse } from "next/server"
 import { generateText } from "ai"
-// --- NEW IMPORT ---
-import { openai } from "@ai-sdk/openai" 
-// ------------------
+import { openai } from "@ai-sdk/openai"
 import { createServerClient, type CookieOptions } from "@supabase/ssr" 
 import { cookies } from "next/headers"
 
-// Simple schema/type for request payload
+// --- FINAL TYPE DEFINITION (Explicit Listing Type, Conditional Price) ---
 type GenerateBody = {
   propertyType: string
-  location?: string
-  priceRange?: string
+  listingType: 'Sale' | 'Rent' | 'Lease' // Explicitly selected by user
+  locality?: string
+  cityState?: string
   features?: string
   tone?: string
   bedrooms?: string
   bathrooms?: string
   area?: string
+  projectName?: string
+  keyLandmarks?: string
+  // CONDITIONAL PRICE FIELDS
+  salePriceRange?: string // Only used if listingType is Sale
+  rentMonthly?: string     // Only used if listingType is Rent/Lease
+  rentDeposit?: string     // Only used if listingType is Rent/Lease
+}
+
+type ParsedOutput = {
+  description: string
+  socialPost: string
+  hashtags: string[]
 }
 
 export async function POST(req: Request) {
@@ -26,67 +37,71 @@ export async function POST(req: Request) {
 
     const {
       propertyType = "Apartment",
-      location = "",
-      priceRange = "",
+      listingType = "Sale", // Explicitly used
+      locality = "",
+      cityState = "",
       features = "",
       tone = "Professional",
-      // Destructure new fields
       bedrooms = "",
       bathrooms = "",
       area = "",
+      projectName = "",
+      keyLandmarks = "",
+      salePriceRange = "",
+      rentMonthly = "",
+      rentDeposit = "",
     } = body
 
+    // 1. CONDITIONAL PRICE/TERM VARIABLE FOR PROMPT
+    const priceContext = 
+      listingType === 'Sale'
+        ? `Sale Price Range: ${salePriceRange || "Unlisted"}`
+        : `Monthly Rent: ₹${rentMonthly || 'Unspecified'}, Deposit/Terms: ${rentDeposit || 'Unspecified'}`;
+
+    // --- FINAL ADVANCED PROMPT STRUCTURE ---
     const prompt = [
-      "You are PropWrite, an assistant that crafts real estate listing content.",
+      "You are PropWrite, a highly experienced and professional real estate copywriter. Your task is to craft compelling marketing content in strict JSON format.",
+      
       "Return strictly valid JSON with keys: description (string), socialPost (string), hashtags (array of 8-12 short strings).",
-      "The description should be **300-450 words**, polished and professional.",
-      "The socialPost should be concise and engaging (max ~40 words).",
-      "Hashtags must be single words prefixed with '#'.",
+      "The description must be **300-450 words** and follow a clear marketing flow (Hook > Key Features > Lifestyle/Location > Call to Action).",
+      `The content must be optimized for a **${listingType.toUpperCase()}** transaction. If it's for 'Rent' or 'Lease', focus on monthly costs, deposit, and immediate occupancy. If it's for 'Sale', focus on investment, appreciation, and ownership benefits.`,
+      "The socialPost must be concise, engaging, and include a Call to Action (max 40 words). Hashtags must be single words prefixed with '#'.",
       "",
-      `Inputs:`,
-      `- Property type: ${propertyType}`,
-      `- Location: ${location || "N/A"}`,
-      `- Price range: ${priceRange || "N/A"}`,
-      `- Key Features/Amenities: ${features || "N/A"}`,
-      `- Tone: ${tone}`,
-      `${bedrooms ? `- Bedrooms: ${bedrooms}` : ""}`,
-      `${bathrooms ? `- Bathrooms: ${bathrooms}` : ""}`,
-      `${area ? `- Area: ${area}` : ""}`,
+      "--- INPUT DATA AND CONSTRAINTS ---",
+      `1. Transaction Type: ${listingType}`,
+      `2. Property Type: ${propertyType}`,
+      `3. Project/Building: ${projectName || "Unspecified"}`,
+      `4. Location: ${locality} in ${cityState}`,
+      `5. ${priceContext}`, // Use the conditional variable
+      `6. Specifications: ${bedrooms} Bedrooms, ${bathrooms} Bathrooms, ${area || "Unknown Area"}`,
+      `7. Key Features: ${features}`,
+      `8. Proximity/Landmarks: ${keyLandmarks || "None provided. Do not invent landmarks."}`,
+      `9. Target Tone: ${tone}`,
+      "",
+      "CONSTRAINTS:",
+      "A. The generated content must strictly match the Target Tone and Transaction Type.",
+      "B. DO NOT invent or mention any feature, amenity, or detail not explicitly listed in 'Key Features' or 'Proximity/Landmarks'.",
+      "C. Highlight the neighborhood and proximity points in the description.",
+      "D. Ensure the description uses professional, high-converting language appropriate for the Indian market.",
       "",
       "Output only JSON. No markdown, no fences.",
     ].filter(Boolean).join("\n")
 
     // AI GENERATION AND PARSING LOGIC
     const { text } = await generateText({
-      // --- FIX: PASS THE OPENAI PROVIDER AND MODEL ---
-      model: openai("gpt-4o-mini"), // Using gpt-4o-mini for cost efficiency
-      // model: openai("gpt-5-mini"), // Use this line if you specifically require gpt-5-mini
-      // ------------------------------------------------
+      model: openai("gpt-4o-mini"),
       prompt,
     })
 
-    let parsed: { description: string; socialPost: string; hashtags: string[] }
+    let parsed: ParsedOutput 
     try {
       parsed = JSON.parse(text)
     } catch {
-      // Fallback if the model didn't return valid JSON
+      // Fallback in case the model returns invalid JSON
       parsed = {
-        description:
-          `${tone} ${propertyType} ${location ? "in " + location : ""}. ` +
-          `Highlights: ${features || "well-designed spaces and modern amenities"}. ` +
-          `${priceRange ? "Price range: " + priceRange + ". " : ""}` +
-          `Schedule a visit to experience it firsthand.`,
-        socialPost: `Explore a ${tone.toLowerCase()} ${propertyType}${location ? " in " + location : ""}! ${features || "Modern, spacious, and move-in ready."}`,
-        hashtags: [
-          "#RealEstate",
-          "#NewListing",
-          "#Home",
-          "#Property",
-          "#ForSale",
-          "#PropTech",
-          "#Invest",
-          "#DreamHome",
-        ],
+        description: `Failed to generate a high-quality description. Re-running the prompt with the specified tone: ${tone}. Property type: ${propertyType}, location: ${locality}, ${cityState}. Price context: ${priceContext}.`,
+        socialPost: `New Listing Alert in ${locality}! Ready for the market.`,
+        hashtags: ["#RealEstate", "#NewListing", "#PropTech"],
       }
     }
     
@@ -110,10 +125,15 @@ export async function POST(req: Request) {
         }
       );
 
+      // 2. CONDITIONAL DATABASE INSERT
+      // We save the full price context (which includes Sale Range OR Rent details) into the price_range column
+      const dbPriceRange = priceContext.replace(/Sale Price Range: |Monthly Rent: /, '').trim();
+
       const { error } = await supabase.from("generations").insert({
         property_type: propertyType,
-        location,
-        price_range: priceRange,
+        listing_type: listingType, // SAVE EXPLICIT USER CHOICE
+        location: `${locality} in ${cityState}`, 
+        price_range: dbPriceRange, // Storing the final price context here
         features,
         tone,
         description: parsed.description,
@@ -122,13 +142,16 @@ export async function POST(req: Request) {
         bedrooms: bedrooms ? parseInt(bedrooms) : null,
         bathrooms: bathrooms ? parseInt(bathrooms) : null,
         area_sqft_sqm: area,
+        project_name: projectName,
+        key_landmarks: keyLandmarks,
+        // user_id will be added in the next phase
       });
 
       if (error) {
         console.error("[v0] Supabase insert error:", error.message);
       }
     } catch (err) {
-      console.error("[v0] Supabase not configured; skipping insert", err);
+      console.error("[v0] Supabase not configured or insert failed:", err);
     }
 
     return NextResponse.json(parsed)
