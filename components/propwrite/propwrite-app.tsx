@@ -1,7 +1,9 @@
+// dinesh31946/propwriter-ai/propwriter-ai-8fb7fd9ed2170095b9e5ea20cd26a171323e1ab5/components/propwrite/propwrite-app.tsx
+
 "use client"
 
 import { useMemo, useState } from "react"
-import { Home, PenLine, Sparkles, Copy } from "lucide-react"
+import { Home, PenLine, Sparkles, Copy, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,66 +13,104 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { DropdownMenuSeparator } from "../ui/dropdown-menu"
 
 type PriceRange = "< ₹50L" | "₹50L–₹1Cr" | "₹1Cr–₹3Cr" | "₹3Cr+"
-
-type Tone = "Professional" | "Luxury" | "Casual" | "Investor-focused"
-
+type Tone = "Professional (English)" | "Luxury (English)" | "Casual (Hinglish Blend)" | "Investor-focused (English)" | "Regional - Marathi/Local"
 type ListingType = "Sale" | "Rent" | "Lease"
 
-// Helper function to download text
-function downloadText(content: string, filename: string) {
+// --- UPDATED HELPER FUNCTION: DOWNLOADS ALL CONTENT ---
+function downloadFullContent(content: {title: string, description: string, metaDescription: string, socialPost: string, hashtags: string[]}, listingType: ListingType) {
+  const contentString = `
+=====================================================
+PROPERTY LISTING GENERATION PACKAGE (PropWrite.AI)
+Transaction Type: ${listingType.toUpperCase()}
+=====================================================
+
+1. LISTING TITLE (Max 10 Words / Portal Field)
+-----------------------------------------------------
+${content.title}
+
+2. LONG LISTING DESCRIPTION (300-450 Words / Main Body)
+-----------------------------------------------------
+${content.description}
+
+3. SEO META DESCRIPTION (Max 160 Chars / Search Visibility)
+-----------------------------------------------------
+${content.metaDescription}
+
+4. SOCIAL MEDIA POST (Short & Engaging Caption)
+-----------------------------------------------------
+${content.socialPost}
+
+5. HASHTAGS
+-----------------------------------------------------
+${content.hashtags.join(' ')}
+
+=====================================================
+`;
   const element = document.createElement("a")
-  const file = new Blob([content], { type: "text/plain" })
+  const file = new Blob([contentString], { type: "text/plain" })
   element.href = URL.createObjectURL(file)
-  element.download = filename
+  element.download = `PropWrite_Content_Package_${listingType.toUpperCase()}.txt`
   document.body.appendChild(element)
   element.click()
   document.body.removeChild(element)
 }
+// --- END UPDATED HELPER ---
 
 export default function PropWriteApp() {
   // Form state
   const [propertyType, setPropertyType] = useState("Apartment")
-  // EXPLICIT LISTING TYPE
   const [listingType, setListingType] = useState<ListingType>("Sale") 
   
   // Structured Location States
   const [locality, setLocality] = useState("") 
   const [cityState, setCityState] = useState("")
   
-  // CONDITIONAL PRICE STATES
-  const [salePriceRange, setSalePriceRange] = useState<PriceRange | "">("")
+  // Conditional Price States
+  const [salePriceExpectation, setSalePriceExpectation] = useState("") 
   const [rentMonthly, setRentMonthly] = useState("")
   const [rentDeposit, setRentDeposit] = useState("")
   
-  const [features, setFeatures] = useState("")
-  const [tone, setTone] = useState<Tone>("Professional")
+  // Consolidated Input
+  const [propertySummary, setPropertySummary] = useState("") 
+  
+  const [tone, setTone] = useState<Tone>("Professional (English)")
 
   // States for Specs & New Landmarks/Project
   const [bedrooms, setBedrooms] = useState("")
   const [bathrooms, setBathrooms] = useState("")
   const [area, setArea] = useState("") 
   const [projectName, setProjectName] = useState("")
-  const [keyLandmarks, setKeyLandmarks] = useState("")
 
+  // Differentiator States
+  const [reraNumber, setReraNumber] = useState("")
+  const [possessionDate, setPossessionDate] = useState("")
+  
   // Result/UX state
   const [loading, setLoading] = useState(false)
+  // NEW STATE: Title
+  const [title, setTitle] = useState("") 
   const [description, setDescription] = useState("")
   const [socialPost, setSocialPost] = useState("")
   const [hashtags, setHashtags] = useState<string[]>([])
-  
+  const [metaDescription, setMetaDescription] = useState("") 
+
   const wordsCount = useMemo(() => {
-    const trimmed = features.trim()
+    const trimmed = propertySummary.trim()
     if (!trimmed) return 0
     return trimmed.split(/\s+/).length
-  }, [features])
+  }, [propertySummary])
+
 
   async function handleGenerate() {
     setLoading(true)
+    setTitle("")
     setDescription("")
     setSocialPost("")
     setHashtags([])
+    setMetaDescription("")
 
     try {
       const res = await fetch("/api/generate", {
@@ -78,18 +118,18 @@ export default function PropWriteApp() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           propertyType,
-          listingType, // Pass EXPLICIT type
+          listingType, 
           locality,
           cityState,
-          features,
+          features: propertySummary,
           tone,
           bedrooms,
           bathrooms,
           area,
           projectName,
-          keyLandmarks,
-          // Pass ONLY the relevant price field
-          salePriceRange: listingType === 'Sale' ? salePriceRange : undefined,
+          reraNumber,
+          possessionDate,
+          salePriceExpectation: listingType === 'Sale' ? salePriceExpectation : undefined,
           rentMonthly: listingType !== 'Sale' ? rentMonthly : undefined,
           rentDeposit: listingType !== 'Sale' ? rentDeposit : undefined,
         }),
@@ -100,16 +140,19 @@ export default function PropWriteApp() {
       }
 
       const data: {
+        title: string
         description: string
         socialPost: string
         hashtags: string[]
+        metaDescription: string
       } = await res.json()
 
-      setDescription(data.description)
+      setTitle(data.title) // Set the new title state
+      setDescription(data.description) 
       setSocialPost(data.socialPost)
       setHashtags(data.hashtags)
+      setMetaDescription(data.metaDescription)
     } catch (err) {
-      // Optionally show a toast; for MVP we just no-op
       // console.log("[v0] generate error:", (err as Error).message)
     } finally {
       setLoading(false)
@@ -124,230 +167,179 @@ export default function PropWriteApp() {
     }
   }
 
+  // Define the full content package object for the download button
+  const fullContentPackage = {
+      title,
+      description,
+      metaDescription,
+      socialPost,
+      hashtags,
+  };
+
+
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header (no change) */}
-      <header className="mb-8">
-        <div className="flex items-center gap-3">
-          <div className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Home className="h-5 w-5" aria-hidden="true" />
-          </div>
-          <div>
-            <h1 className="text-balance text-2xl font-semibold tracking-tight text-foreground">PropWrite.AI</h1>
-            <p className="text-sm text-muted-foreground">Turn property details into professional listings instantly.</p>
-          </div>
-        </div>
-      </header>
-
-      {/* Layout */}
       <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Left: Input Form */}
+        {/* Left: Input Form (No changes needed from last step) */}
         <Card className="border">
+          {/* ... (Input form content remains the same) ... */}
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <PenLine className="h-5 w-5 text-primary" aria-hidden="true" />
               Property Details
             </CardTitle>
-            <CardDescription>Enter your listing information and generate a polished description.</CardDescription>
+            <CardDescription>Enter essential information to begin generation.</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4">
               
-              {/* NEW: LISTING TYPE (Explicitly Selected) */}
-              <div className="grid gap-2">
-                <Label htmlFor="listing-type">Listing Type</Label>
-                <Select value={listingType} onValueChange={(v: ListingType) => setListingType(v)}>
-                  <SelectTrigger id="listing-type" aria-label="Listing Type">
-                    <SelectValue placeholder="Select Sale or Rent" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="Sale">For Sale</SelectItem>
-                      <SelectItem value="Rent">For Rent</SelectItem>
-                      <SelectItem value="Lease">For Lease</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Property Type (Remains) */}
-              <div className="grid gap-2">
-                <Label htmlFor="property-type">Property Type</Label>
-                <Select value={propertyType} onValueChange={setPropertyType}>
-                  <SelectTrigger id="property-type" aria-label="Property Type">
-                    <SelectValue placeholder="Select property type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="Apartment">Apartment</SelectItem>
-                      <SelectItem value="House">House</SelectItem>
-                      <SelectItem value="Villa">Villa</SelectItem>
-                      <SelectItem value="Commercial Space">Commercial Space</SelectItem>
-                      <SelectItem value="Plot/Land">Plot/Land</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Bedrooms & Bathrooms (Remains) */}
+              {/* ROW 1: Listing Type & Property Type */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="bedrooms">Bedrooms</Label>
-                  <Input
-                    id="bedrooms"
-                    type="number"
-                    placeholder="e.g., 3"
-                    min="1"
-                    value={bedrooms}
-                    onChange={(e) => setBedrooms(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="bathrooms">Bathrooms</Label>
-                  <Input
-                    id="bathrooms"
-                    type="number"
-                    placeholder="e.g., 2"
-                    min="1"
-                    value={bathrooms}
-                    onChange={(e) => setBathrooms(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Area (Remains) */}
-              <div className="grid gap-2">
-                <Label htmlFor="area">Area (sq.ft / sq.m)</Label>
-                <Input
-                  id="area"
-                  placeholder="e.g., 1500 sq.ft or 140 sq.m"
-                  value={area}
-                  onChange={(e) => setArea(e.target.value)}
-                />
-              </div>
-
-              {/* Locality/Area (Remains) */}
-              <div className="grid gap-2">
-                <Label htmlFor="locality">Locality / Area</Label>
-                <Input
-                  id="locality"
-                  placeholder="e.g., Ulwe, Bandra, or Sector 10"
-                  value={locality}
-                  onChange={(e) => setLocality(e.target.value)}
-                />
-              </div>
-
-              {/* City/State (Remains) */}
-              <div className="grid gap-2">
-                <Label htmlFor="cityState">City, State</Label>
-                <Input
-                  id="cityState"
-                  placeholder="e.g., Navi Mumbai, Maharashtra"
-                  value={cityState}
-                  onChange={(e) => setCityState(e.target.value)}
-                />
-              </div>
-
-              {/* Project / Building Name (Remains) */}
-              <div className="grid gap-2">
-                <Label htmlFor="projectName">Project / Building Name (Optional)</Label>
-                <Input
-                  id="projectName"
-                  placeholder="e.g., Lodha Pallazio or Royal Towers"
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                />
-              </div>
-              
-              {/* --- CONDITIONAL PRICE INPUT --- */}
-              {listingType === 'Sale' ? (
-                <div className="grid gap-2">
-                  <Label htmlFor="price-range">Sale Price Range</Label>
-                  <Select value={salePriceRange} onValueChange={(v: PriceRange) => setSalePriceRange(v)}>
-                    <SelectTrigger id="price-range" aria-label="Sale Price Range">
-                      <SelectValue placeholder="Select a price range" />
+                  <Label htmlFor="listing-type">Listing Type</Label>
+                  <Select value={listingType} onValueChange={(v: ListingType) => setListingType(v)}>
+                    <SelectTrigger id="listing-type" aria-label="Listing Type">
+                      <SelectValue placeholder="Select Sale or Rent" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        <SelectItem value="< ₹50L">{"< ₹50L"}</SelectItem>
-                        <SelectItem value="₹50L–₹1Cr">₹50L–₹1Cr</SelectItem>
-                        <SelectItem value="₹1Cr–₹3Cr">₹1Cr–₹3Cr</SelectItem>
-                        <SelectItem value="₹3Cr+">₹3Cr+</SelectItem>
+                        <SelectItem value="Sale">For Sale</SelectItem>
+                        <SelectItem value="Rent">For Rent</SelectItem>
+                        <SelectItem value="Lease">For Lease</SelectItem>
                       </SelectGroup>
                     </SelectContent>
                   </Select>
                 </div>
-              ) : (
                 <div className="grid gap-2">
-                  <Label htmlFor="rentMonthly">Rent / Lease Terms</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input
-                      id="rentMonthly"
-                      type="number"
-                      placeholder="Monthly Rent (₹)"
-                      value={rentMonthly}
-                      onChange={(e) => setRentMonthly(e.target.value)}
-                    />
-                    <Input
-                      id="rentDeposit"
-                      type="text"
-                      placeholder="Deposit / Lease Term"
-                      value={rentDeposit}
-                      onChange={(e) => setRentDeposit(e.target.value)}
-                    />
-                  </div>
+                  <Label htmlFor="property-type">Property Type</Label>
+                  <Select value={propertyType} onValueChange={setPropertyType}>
+                    <SelectTrigger id="property-type" aria-label="Property Type">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="Apartment">Apartment</SelectItem>
+                        <SelectItem value="House">House</SelectItem>
+                        <SelectItem value="Villa">Villa</SelectItem>
+                        <SelectItem value="Commercial Space">Commercial Space</SelectItem>
+                        <SelectItem value="Plot/Land">Plot/Land</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
-              {/* --- END CONDITIONAL PRICE INPUT --- */}
+              </div>
 
+              {/* ROW 2: Bedrooms, Bathrooms, Area */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="bedrooms">Beds</Label>
+                  <Input id="bedrooms" type="number" placeholder="e.g., 3" min="1" value={bedrooms} onChange={(e) => setBedrooms(e.target.value)} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="bathrooms">Baths</Label>
+                  <Input id="bathrooms" type="number" placeholder="e.g., 2" min="1" value={bathrooms} onChange={(e) => setBathrooms(e.target.value)} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="area">Area</Label>
+                  <Input id="area" placeholder="e.g., 1030 sq.ft" value={area} onChange={(e) => setArea(e.target.value)} />
+                </div>
+              </div>
+              
+              <Separator className="my-2" />
 
-              {/* Features & Amenities (Remains) */}
+              {/* ROW 3: LOCATION (Locality & City/State) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="locality">Locality / Area</Label>
+                  <Input id="locality" placeholder="e.g., Ulwe, Bandra" value={locality} onChange={(e) => setLocality(e.target.value)} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="cityState">City, State</Label>
+                  <Input id="cityState" placeholder="e.g., Navi Mumbai" value={cityState} onChange={(e) => setCityState(e.target.value)} />
+                </div>
+              </div>
+              
+              {/* ROW 4: PROJECT & PRICE (Dynamic) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="projectName">Project / Building Name (Optional)</Label>
+                  <Input id="projectName" placeholder="e.g., Progressive Grande" value={projectName} onChange={(e) => setProjectName(e.target.value)} />
+                </div>
+                {/* CONDITIONAL PRICE INPUT */}
+                <div className="grid gap-2">
+                  <Label htmlFor={listingType === 'Sale' ? 'salePriceExpectation' : 'rentMonthly'}>
+                    {listingType === 'Sale' ? 'Expected Sale Price' : 'Monthly Rent (₹)'}
+                  </Label>
+                  {listingType === 'Sale' ? (
+                    <Input id="salePriceExpectation" type="text" placeholder="e.g., ₹2.5 Cr or ₹90 Lakhs" value={salePriceExpectation} onChange={(e) => setSalePriceExpectation(e.target.value)} />
+                  ) : (
+                    <Input id="rentMonthly" type="number" placeholder="e.g., 45000" value={rentMonthly} onChange={(e) => setRentMonthly(e.target.value)} />
+                  )}
+                </div>
+              </div>
+              
+              {/* --- CONSOLIDATED TEXT INPUT (THE BIG WIN) --- */}
               <div className="grid gap-2">
-                <Label htmlFor="features">Key Features & Amenities</Label>
+                <Label htmlFor="propertySummary" className="font-semibold">
+                    Property Summary (Amenities, Keywords, & Proximity)
+                </Label>
                 <Textarea
-                  id="features"
-                  placeholder="E.g., modular kitchen, balcony, covered parking, clubhouse, pool, power backup..."
-                  value={features}
-                  onChange={(e) => setFeatures(e.target.value)}
-                  rows={6}
+                  id="propertySummary"
+                  placeholder="Paste your notes here: 
+                  - Modular kitchen, balcony, clubhouse, pool, power backup. (Amenities)
+                  - 5 mins walk to Metro Station, Near D-Mart. (Proximity)
+                  - Target Keywords: premium 3 BHK Ulwe, sea view apartment Mumbai. (SEO)"
+                  value={propertySummary}
+                  onChange={(e) => setPropertySummary(e.target.value)}
+                  rows={8}
                 />
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="sr-only">Word count</span>
                   <span aria-hidden="true">{wordsCount} words</span>
-                  <span>Tip: List highlights in short phrases.</span>
+                  <span>Tip: The AI will structure this text automatically.</span>
                 </div>
               </div>
+              {/* --- END CONSOLIDATED TEXT INPUT --- */}
 
-              {/* Proximity / Landmarks (Remains) */}
-              <div className="grid gap-2">
-                <Label htmlFor="keyLandmarks">Proximity / Key Landmarks</Label>
-                <Textarea
-                  id="keyLandmarks"
-                  placeholder="E.g., 5 mins walk to Metro Station, Near Reliance Mall, Next to D-Mart"
-                  value={keyLandmarks}
-                  onChange={(e) => setKeyLandmarks(e.target.value)}
-                  rows={3}
-                />
-                <span className="text-xs text-muted-foreground">The AI will use these details to enhance the location narrative.</span>
+              {/* ROW 6: TONE & COMPLIANCE (Optional) */}
+              <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="tone">Tone & Language Style</Label>
+                    <Select value={tone} onValueChange={(v: Tone) => setTone(v)}>
+                      <SelectTrigger id="tone" aria-label="Tone & Language Style">
+                        <SelectValue placeholder="Select tone" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectItem value="Professional (English)">Professional (Standard English)</SelectItem>
+                          <SelectItem value="Luxury (English)">Luxury (Standard English)</SelectItem>
+                          <SelectItem value="Investor-focused (English)">Investor-focused (Standard English)</SelectItem>
+                          <DropdownMenuSeparator />
+                          <SelectItem value="Casual (Hinglish Blend)">Casual (Hinglish Blend)</SelectItem>
+                          <SelectItem value="Regional - Marathi/Local">Regional - Marathi/Local</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                      <Label htmlFor="reraNumber">RERA Number (Optional)</Label> 
+                      <Input id="reraNumber" placeholder="e.g., P52000021234" value={reraNumber} onChange={(e) => setReraNumber(e.target.value)} />
+                  </div>
               </div>
 
-              {/* Tone (Remains) */}
-              <div className="grid gap-2">
-                <Label htmlFor="tone">Tone</Label>
-                <Select value={tone} onValueChange={(v: Tone) => setTone(v)}>
-                  <SelectTrigger id="tone" aria-label="Tone">
-                    <SelectValue placeholder="Select tone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      <SelectItem value="Professional">Professional</SelectItem>
-                      <SelectItem value="Luxury">Luxury</SelectItem>
-                      <SelectItem value="Casual">Casual</SelectItem>
-                      <SelectItem value="Investor-focused">Investor-focused</SelectItem>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
+              {/* ROW 7: POSSESSION DATE & DEPOSIT (Conditional) */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="possessionDate">Possession Date (Optional)</Label>
+                    <Input id="possessionDate" placeholder="e.g., Jun 2025 or Ready to Move" value={possessionDate} onChange={(e) => setPossessionDate(e.target.value)} />
+                </div>
+                {listingType !== 'Sale' && (
+                    <div className="grid gap-2">
+                        <Label htmlFor="rentDeposit">Deposit / Lease Term</Label>
+                        <Input id="rentDeposit" type="text" placeholder="e.g., 2 months deposit" value={rentDeposit} onChange={(e) => setRentDeposit(e.target.value)} />
+                    </div>
+                )}
               </div>
+
 
               {/* Action (Remains) */}
               <div className="pt-2">
@@ -369,7 +361,34 @@ export default function PropWriteApp() {
         {/* Right: Output Panel */}
         <div className="flex flex-col gap-6">
           
-          {/* Listing Description (Download button remains) */}
+          {/* --- NEW OUTPUT: LISTING TITLE --- */}
+          <Card className="border shadow-sm">
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-xl">Listing Title</CardTitle>
+              <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => copyToClipboard(title)}
+                  disabled={!title || loading}
+                  aria-disabled={!title || loading}
+              >
+                  <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Copy Title
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                  <Skeleton className="h-8 w-full" />
+              ) : title ? (
+                  <p className="text-xl font-medium">{title}</p>
+              ) : (
+                  <p className="text-sm text-muted-foreground">Your attention-grabbing title will appear here.</p>
+              )}
+            </CardContent>
+          </Card>
+
+
+          {/* Listing Description (Download button updated) */}
           <Card className="border shadow-sm">
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <div>
@@ -377,14 +396,16 @@ export default function PropWriteApp() {
                 <CardDescription>Polished, ready-to-use description.</CardDescription>
               </div>
               <div className="flex items-center gap-2">
+                {/* NEW DOWNLOAD BUTTON: Downloads the entire package */}
                 <Button
-                    variant="secondary"
+                    variant="default"
                     size="sm"
-                    onClick={() => downloadText(description, `propwrite_${listingType.toLowerCase()}_listing.txt`)}
+                    onClick={() => downloadFullContent(fullContentPackage, listingType)}
                     disabled={!description || loading}
                     aria-disabled={!description || loading}
                 >
-                    Download (.txt)
+                    <Download className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Download Full Package
                 </Button>
                 <Button
                   variant="secondary"
@@ -414,6 +435,36 @@ export default function PropWriteApp() {
               )}
             </CardContent>
           </Card>
+
+          {/* SEO Meta Description (Remains) */}
+          <Card>
+              <CardHeader className="flex-row items-center justify-between space-y-0">
+                  <div>
+                      <CardTitle>SEO Meta Description</CardTitle>
+                      <CardDescription>Optimized for Google & Property Portals (max ~160 chars).</CardDescription>
+                  </div>
+                  <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => copyToClipboard(metaDescription)}
+                      disabled={!metaDescription || loading}
+                      aria-disabled={!metaDescription || loading}
+                  >
+                      <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
+                      Copy Meta
+                  </Button>
+              </CardHeader>
+              <CardContent>
+                  {loading ? (
+                      <Skeleton className="h-10 w-full" />
+                  ) : metaDescription ? (
+                      <Textarea value={metaDescription} readOnly rows={2} className="resize-none" />
+                  ) : (
+                      <p className="text-sm text-muted-foreground">The AI will generate a concise, keyword-optimized snippet.</p>
+                  )}
+              </CardContent>
+          </Card>
+
 
           {/* Social Post (Remains) */}
           <Card>
@@ -448,7 +499,7 @@ export default function PropWriteApp() {
             </CardContent>
           </Card>
 
-          {/* Hashtags + Upsell (Regenerate button remains) */}
+          {/* Hashtags + Upsell (Remains) */}
           <Card>
             <CardHeader>
               <CardTitle>Hashtags</CardTitle>
@@ -468,23 +519,23 @@ export default function PropWriteApp() {
                     <Badge key={tag} variant="secondary" className="text-xs">
                       {tag}
                     </Badge>
-                  ))}
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Suggested hashtags will appear here.</p>
+                )}
+
+                <Separator className="my-6" />
+
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-sm text-muted-foreground">Get a new variant?</p>
+                  <Button variant="secondary" onClick={handleGenerate} disabled={loading}>
+                      Regenerate
+                  </Button>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Suggested hashtags will appear here.</p>
-              )}
-
-              <Separator className="my-6" />
-
-              <div className="flex items-center justify-between gap-4">
-                <p className="text-sm text-muted-foreground">Get a new variant?</p>
-                <Button variant="secondary" onClick={handleGenerate} disabled={loading}>
-                    Regenerate
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
       </section>
     </div>
   )
