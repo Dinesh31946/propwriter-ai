@@ -4,58 +4,58 @@ import { NextResponse } from "next/server"
 import { createServerClient, type CookieOptions } from "@supabase/ssr" 
 import { cookies, headers } from "next/headers"
 
-// Define the Admin Email (use a public var for serverless functions)
+// Define the Admin Email (Must match the email you used to log in)
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@propwrite.ai" 
 
 export async function GET(req: Request) {
   try {
-    const url = new URL(req.url)
-    const q = url.searchParams.get("q")?.trim() ?? ""
-    const limit = Number(url.searchParams.get("limit") ?? "20")
-    const offset = Number(url.searchParams.get("offset") ?? "0")
+    const cookieStore = await cookies();
 
-    const cookieStore = await cookies()
     const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-        set: (name: string, value: string, options: CookieOptions) => {
-          cookieStore.set({ name, value, ...options })
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get: (name: string) => cookieStore.get(name)?.value,
+          set: (name: string, value: string, options: CookieOptions) => {
+            cookieStore.set({ name, value, ...options })
+          },
+          remove: (name: string, options: CookieOptions) => {
+            cookieStore.set({ name, value: '', ...options })
+          },
         },
-        remove: (name: string, options: CookieOptions) => {
-          cookieStore.set({ name, value: '', ...options })
-        },
-      },
-    }
-  );
+      }
+    );
 
     // --- ADMIN AUTHORIZATION CHECK ---
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user || user.email !== ADMIN_EMAIL) {
-        return NextResponse.json({ error: "Access Denied: Not authorized to view admin data." }, { status: 403 })
+        return NextResponse.json({ error: "Access Denied: Not authorized to view admin data. Log in with the designated admin email." }, { status: 403 })
     }
     // --- END ADMIN CHECK ---
     
 
-    let query = supabase
-      .from("generations")
-      .select("*", { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1)
-
-    if (q) {
-      query = query.ilike("location", `%${q}%`).ilike("features", `%${q}%`)
-    }
-
-    const { data, error, count } = await query
+    // CRITICAL FIX: Call the PostgreSQL function to get aggregated usage data.
+    const { data, error } = await supabase
+      .rpc('get_user_generation_counts')
+      .select('*'); 
+      
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 400 })
+        console.error("Admin Dashboard Aggregation Error:", error);
+        return NextResponse.json({ error: "Failed to fetch user usage summary from database function." }, { status: 400 })
     }
 
-    return NextResponse.json({ items: data ?? [], count: count ?? 0 })
+    // Filter out the entry where user_uuid is null (anonymous users) for visualization
+    const items = data.filter((item: { user_uuid: null; }) => item.user_uuid !== null);
+    const anonymousEntry = data.find((item: { user_uuid: null; }) => item.user_uuid === null);
+
+    // Return the aggregated list.
+    return NextResponse.json({ 
+        items: items ?? [], 
+        count: items.length, // Count of signed up users
+        anonymousCount: anonymousEntry?.total_generations ?? 0
+    });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message ?? "Unknown error" }, { status: 400 })
   }

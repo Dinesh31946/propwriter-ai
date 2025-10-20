@@ -58,9 +58,16 @@ export default function Page() {
 
           {/* Auth and Admin Links */}
           <nav className="flex items-center gap-2">
+            
+            {/* NEW: Pricing Link (for all users) */}
+            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                <Link href="/pricing">Pricing</Link>
+            </Button>
+
             {loading ? (
               <div className="h-8 w-20 animate-pulse rounded-md bg-muted" />
             ) : user ? (
+              // ... Logged In User Links ...
               <div className="flex items-center gap-3">
                 {/* Admin Button (Visible only to the Admin Email) */}
                 {isAdmin && (
@@ -84,6 +91,7 @@ export default function Page() {
                 </Button>
               </div>
             ) : (
+              // ... Logged Out Links ...
               <Button asChild size="sm">
                 <Link href="/login" className="inline-flex items-center gap-2">
                   <LogIn className="h-4 w-4" />
