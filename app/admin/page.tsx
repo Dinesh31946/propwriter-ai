@@ -14,6 +14,19 @@ import Link from "next/link"
 // CHART COMPONENTS from recharts (Assumed available in package.json)
 import { BarChart as RechartBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
+
+function PropWriteLogo() {
+  return (
+    <div className="relative flex items-center justify-center">
+      <img
+        src="/PropWriter-Icon.png" 
+        alt="PropWrite Logo"
+        className="h-16 w-16 object-contain"
+      />
+    </div>
+  );
+}
+
 // Data Type for the aggregated data from the API's RPC call
 type UserUsage = {
   user_uuid: string | null;
@@ -89,8 +102,8 @@ export default function AdminPage() {
       {/* Header */}
       <header className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <TableIcon className="h-5 w-5" aria-hidden="true" />
+          <div className="inline-flex items-center justify-center">
+              <PropWriteLogo />
           </div>
           <div>
             <h1 className="text-balance text-2xl font-semibold tracking-tight">PropWrite.AI Monitoring</h1>

@@ -5,7 +5,8 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
-import AuthProvider from '@/components/auth-provider' // Your Auth Context Provider
+// NEW IMPORTS
+import AuthProvider from '@/components/auth-provider'
 import { createServerClient } from "@supabase/ssr" 
 import { cookies } from 'next/headers'
 import { type CookieOptions } from '@supabase/ssr'
@@ -20,21 +21,17 @@ export const metadata: Metadata = {
 
 // Function to get initial session (server-side fetch for SSR)
 async function getInitialSession() {
-  const cookieStore = await cookies()
-  
-  // Use the anonymous key here
+  const cookieStore = await cookies();
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_ANON_KEY!,
     {
       cookies: {
         get: (name: string) => cookieStore.get(name)?.value,
-        set: (name: string, value: string, options: CookieOptions) => {
-          cookieStore.set({ name, value, ...options })
-        },
-        remove: (name: string, options: CookieOptions) => {
-          cookieStore.set({ name, value: '', ...options })
-        },
+        // CRITICAL FIX: set and remove must be NO-OP functions in the layout (Server Component)
+        set: (name: string, value: string, options: CookieOptions) => {}, 
+        remove: (name: string, options: CookieOptions) => {},
       },
     }
   );
@@ -49,11 +46,13 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Fetch session data on the server
   const session = await getInitialSession();
 
   return (
     <html lang="en">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
+        {/* Wrap content with AuthProvider to share session context */}
         <AuthProvider initialSession={session}>
           {children}
         </AuthProvider>

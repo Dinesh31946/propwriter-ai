@@ -4,7 +4,7 @@ import { NextResponse } from "next/server"
 import { createServerClient, type CookieOptions } from "@supabase/ssr" 
 import { cookies, headers } from "next/headers"
 
-// Define the Admin Email (Must match the email you used to log in)
+// NOTE: ADMIN_EMAIL is now only used for INITIAL SETUP, but we keep it defined.
 const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@propwrite.ai" 
 
 export async function GET(req: Request) {
@@ -27,16 +27,29 @@ export async function GET(req: Request) {
       }
     );
 
-    // --- ADMIN AUTHORIZATION CHECK ---
+    // --- ADMIN AUTHORIZATION CHECK (Using Role-Based Access) ---
     const { data: { user } } = await supabase.auth.getUser();
 
-    if (!user || user.email !== ADMIN_EMAIL) {
-        return NextResponse.json({ error: "Access Denied: Not authorized to view admin data. Log in with the designated admin email." }, { status: 403 })
+    if (!user) {
+        // Block if not logged in
+        return NextResponse.json({ error: "Access Denied: Must be logged in." }, { status: 403 })
+    }
+
+    // CRITICAL: Fetch the user's role from the new table
+    const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+    
+    // Fallback: If no role is found, or role is not 'admin', deny access
+    if (roleError || roleData?.role !== 'admin') {
+        return NextResponse.json({ error: "Access Denied: User is not authorized as Admin." }, { status: 403 })
     }
     // --- END ADMIN CHECK ---
     
 
-    // CRITICAL FIX: Call the PostgreSQL function to get aggregated usage data.
+    // --- Monitoring Logic (Only runs for authenticated Admin) ---
     const { data, error } = await supabase
       .rpc('get_user_generation_counts')
       .select('*'); 
@@ -46,14 +59,14 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Failed to fetch user usage summary from database function." }, { status: 400 })
     }
 
-    // Filter out the entry where user_uuid is null (anonymous users) for visualization
+    // Filter out anonymous users for visualization
     const items = data.filter((item: { user_uuid: null; }) => item.user_uuid !== null);
     const anonymousEntry = data.find((item: { user_uuid: null; }) => item.user_uuid === null);
 
     // Return the aggregated list.
     return NextResponse.json({ 
         items: items ?? [], 
-        count: items.length, // Count of signed up users
+        count: items.length, 
         anonymousCount: anonymousEntry?.total_generations ?? 0
     });
   } catch (err) {
