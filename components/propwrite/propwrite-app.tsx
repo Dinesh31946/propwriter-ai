@@ -23,7 +23,7 @@ type ListingType = "Sale" | "Rent" | "Lease"
 function downloadFullContent(content: {title: string, description: string, metaDescription: string, socialPost: string, hashtags: string[]}, listingType: ListingType) {
   const contentString = `
 =====================================================
-PROPERTY LISTING GENERATION PACKAGE (PropWrite.AI)
+PROPERTY LISTING GENERATION PACKAGE (PropWriter.AI)
 Transaction Type: ${listingType.toUpperCase()}
 =====================================================
 

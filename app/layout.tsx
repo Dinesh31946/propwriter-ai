@@ -13,7 +13,7 @@ import { type CookieOptions } from '@supabase/ssr'
 
 
 export const metadata: Metadata = {
-  title: 'PropWrite.AI', 
+  title: 'PropWriter.AI', 
   description: 'Turn property details into professional listings instantly.', 
   generator: 'v0.app',
 }

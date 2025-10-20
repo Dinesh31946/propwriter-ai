@@ -120,7 +120,7 @@ export function LoginForm() {
   }
 
   const isSignUpView = view === 'signup';
-  const headerTitle = isSignUpView ? 'Join PropWrite.AI' : 'Welcome Back';
+  const headerTitle = isSignUpView ? 'Join PropWriter.AI' : 'Welcome Back';
   const headerDescription = isSignUpView 
     ? 'Unlock your 5 free generations daily — no credit card needed.'
     : 'Login to resume high-quality generation.';

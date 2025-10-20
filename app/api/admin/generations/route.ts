@@ -5,7 +5,7 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr"
 import { cookies, headers } from "next/headers"
 
 // NOTE: ADMIN_EMAIL is now only used for INITIAL SETUP, but we keep it defined.
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@propwrite.ai" 
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@propwriter.ai" 
 
 export async function GET(req: Request) {
   try {

@@ -25,7 +25,7 @@ export default function LandingPage() {
         >
           Generate High-Converting, RERA-Compliant Listings in Seconds.
           <br />
-          PropWrite.AI uses specialized local AI to craft perfect, localized
+          PropWriter.AI uses specialized local AI to craft perfect, localized
           copy (Title, SEO, Social, Hinglish/Marathi) for the Indian market.
         </motion.p>
 

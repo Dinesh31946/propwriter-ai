@@ -18,7 +18,7 @@ function PropWriteLogo() {
 }
 
 export const metadata: Metadata = {
-  title: 'Login | PropWrite.AI',
+  title: 'Login | PropWriter.AI',
   description: 'Sign in to access unlimited property description generations.',
 }
 
@@ -32,7 +32,7 @@ export default function LoginPage() {
           <div className="inline-flex items-center justify-center">
               <PropWriteLogo />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">PropWrite.AI</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">PropWriter.AI</h1>
           <p className="text-sm text-muted-foreground mt-1 max-w-xs">
               Generate high-converting, localized property listings instantly.
           </p>

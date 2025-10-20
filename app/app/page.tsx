@@ -65,7 +65,7 @@ export default function AppPage() {
                             <PropWriteLogo />
                         </div>
                         <span className="text-xl font-semibold tracking-tight text-foreground flex flex-col">
-                            PropWrite.AI
+                            PropWriter.AI
                             <p className="text-xs text-muted-foreground hidden sm:block">Listing Generator App</p>
                         </span>
                     </Link>

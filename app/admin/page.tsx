@@ -106,7 +106,7 @@ export default function AdminPage() {
               <PropWriteLogo />
           </div>
           <div>
-            <h1 className="text-balance text-2xl font-semibold tracking-tight">PropWrite.AI Monitoring</h1>
+            <h1 className="text-balance text-2xl font-semibold tracking-tight">PropWriter.AI Monitoring</h1>
             <p className="text-sm text-muted-foreground">
               Cost management, user adoption, and monetization tracking.
             </p>

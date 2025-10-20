@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from '@/components/ui/separator'
 
 export const metadata = {
-  title: 'Pricing | PropWrite.AI',
+  title: 'Pricing | PropWriter.AI',
   description: 'Choose the best plan for unlimited, professional listing generation.',
 }
 

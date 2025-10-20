@@ -27,7 +27,7 @@ function PropWriteLogo() {
 }
 
 // NOTE: Add this to your .env.local for admin check
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@propwrite.ai" 
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@propwriter.ai" 
 
 export default function Page() {
   const { user, loading } = useAuth()
@@ -72,7 +72,7 @@ export default function Page() {
               <PropWriteLogo />
             </div>
             <span className="text-xl font-semibold tracking-tight text-foreground flex flex-col">
-              PropWrite.AI
+              PropWriter.AI
               <p className="text-xs text-muted-foreground hidden sm:block">Turn property details into professional listings instantly.</p>
             </span>
           </Link>
